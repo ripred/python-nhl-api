@@ -7,8 +7,6 @@
 import sys
 import json
 import argparse
-import nhlapi
-
 from nhlapi import get_json_data
 
 
@@ -78,15 +76,18 @@ class People:
         if self.content and 'people' in self.content and 'fullName' in self.content['people'][0]:
             self.name = self.content['people'][0]['fullName']
 
-    def get_ext_url(self, *modifiers, season=None, start_year=None, end_year=None):
+    def get_ext_url(self, *modifiers, **kwargs):
         """ get extra stats url's """
         sep = '?'
         suffix = ''
         url = self.url + '/stats'
-        if season is not None:
-            suffix = '&season={}{}'.format(season, season + 1)
-        if start_year is not None and end_year is not None:
-            suffix = '&startYear={}&endYear={}'.format(start_year, end_year)
+        if kwargs:
+            if 'season' in kwargs and kwargs['season']:
+                suffix = '&season={}{}'.format(kwargs['season'], kwargs['season'] + 1)
+                if 'start_year' in kwargs and kwargs['start_year']:
+                    if 'end_year' in kwargs and kwargs['end_year']:
+                        suffix = '&startYear={}&endYear={}'.format(
+                            kwargs['start_year'], kwargs['end_year'])
         if isinstance(modifiers, int):
             return url + sep + self.modifiers[modifiers] + suffix
         for elem in modifiers:
@@ -101,9 +102,9 @@ class People:
             sep = '&'
         return url + suffix
 
-    def load_ext_url(self, *modifiers, season=None, start_year=None, end_year=None):
+    def load_ext_url(self, *modifiers, **kwargs):
         """ load the values from the extra data specified """
-        url = self.get_ext_url(*modifiers, season=season, start_year=start_year, end_year=end_year)
+        url = self.get_ext_url(*modifiers, **kwargs)
         self.content = get_json_data(url)
 
 

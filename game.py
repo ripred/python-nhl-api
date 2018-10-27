@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-
 """
     Game class for the nhlapi package
 """
@@ -7,7 +6,6 @@
 import sys
 import json
 import argparse
-import nhlapi
 from nhlapi import get_json_data
 
 
@@ -57,13 +55,13 @@ class Game:
             team_name2 = self.content['teams']['home']['team']['name']
             self.name = team_name1 + ' at ' + team_name2
 
-    def get_ext_url(self, *modifiers, diff_time=None):
+    def get_ext_url(self, *modifiers, **kwargs):
         """ get extra stats url's """
         sep = '?'
         suffix = ''
         url = self.url + '/'
-        if diff_time is not None:
-            suffix = '?startTimecode={}'.format(diff_time)
+        if kwargs and 'diff_time' in kwargs and kwargs['diff_time']:
+            suffix = '?startTimecode={}'.format(kwargs['diff_time'])
         if isinstance(modifiers, int):
             return url + sep + self.modifiers[modifiers] + suffix
         for elem in modifiers:
@@ -78,9 +76,9 @@ class Game:
             sep = '&'
         return url + suffix
 
-    def load_ext_url(self, *modifiers, diff_time=None):
+    def load_ext_url(self, *modifiers, **kwargs):
         """ load the values from the extra data specified """
-        url = self.get_ext_url(modifiers, diff_time=diff_time)
+        url = self.get_ext_url(modifiers, **kwargs)
         self.content = get_json_data(url)
 
 
@@ -115,7 +113,7 @@ def parse_args():
     for arg in args_vars:
         if arg in Game.STATS and args_vars[arg]:
             if args.liveDiffTime:
-                game.load_ext_url(Game.STATS[arg], args.liveDiffTime)
+                game.load_ext_url(Game.STATS[arg], diff_time=args.liveDiffTime)
             else:
                 game.load_ext_url(Game.STATS[arg])
 

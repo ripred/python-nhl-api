@@ -7,7 +7,6 @@
 import sys
 import json
 import argparse
-import nhlapi
 from nhlapi import get_json_data
 
 
@@ -55,13 +54,13 @@ class Team:
         if self.content and 'teams' in self.content and 'name' in self.content['teams'][0]:
             self.name = self.content['teams'][0]['name']
 
-    def get_ext_url(self, *modifiers, season=None):
+    def get_ext_url(self, *modifiers, **kwargs):
         """ get extra stats url's """
         sep = '?'
         suffix = ''
         url = self.url + '/'
-        if season is not None:
-            suffix = '&season={}{}'.format(season, season + 1)
+        if kwargs and 'season' in kwargs and kwargs['season']:
+            suffix = '&season={}{}'.format(kwargs['season'], kwargs['season'] + 1)
         if isinstance(modifiers, int):
             return url + sep + self.modifiers[modifiers] + suffix
         for elem in modifiers:

@@ -7,7 +7,6 @@
 import sys
 import json
 import argparse
-import nhlapi
 from nhlapi import get_json_data
 
 
@@ -53,13 +52,13 @@ class Schedule:
         else:
             self.content = get_json_data(self.url)
 
-    def get_ext_url(self, *modifiers, season=None):
+    def get_ext_url(self, *modifiers, **kwargs):
         """ get extra stats url's """
         sep = '?'
         suffix = ''
         url = self.url
-        if season is not None:
-            suffix = '&season={}{}'.format(season, season + 1)
+        if 'season' in kwargs and kwargs['season']:
+            suffix = '&season={}{}'.format(kwargs['season'], kwargs['season'] + 1)
         if isinstance(modifiers, int):
             return url + sep + self.modifiers[modifiers] + suffix
         for elem in modifiers:
@@ -74,9 +73,9 @@ class Schedule:
             sep = '&'
         return url + suffix
 
-    def load_ext_url(self, *modifiers, year=None):
+    def load_ext_url(self, *modifiers, **kwargs):
         """ load the values from the extra data specified """
-        url = self.get_ext_url(*modifiers, season=year)
+        url = self.get_ext_url(*modifiers, **kwargs)
         self.content = get_json_data(url)
 
 
@@ -86,10 +85,10 @@ def parse_args():
 
     :return: The options as a dictionary
     """
-    description = 'use the nhlapi/Schedule class to retrieve' +\
-                  'information about a scheduled games in the NHL.'
-    epilog = 'Example use: schedule.py --log schedule.log' +\
-             '--humanReadable --scheduleBroadcasts --date=2018-10-26'
+    description = 'use the nhlapi/Schedule class to retrieve'
+    description += ' information about a scheduled games in the NHL.'
+    epilog = 'Example use: schedule.py --log log/schedule.log'
+    epilog += ' --humanReadable --scheduleBroadcasts --date=2018-10-26'
     parser = argparse.ArgumentParser(description=description, epilog=epilog)
 
     parser.add_argument('--scheduleBroadcasts',
@@ -116,6 +115,11 @@ def parse_args():
         return args
 
     # args_vars = vars(args)
+    team_pair = {Schedule.STATS['teamId']: args.teamId}
+    date_pair = {Schedule.STATS['date']: args.date}
+    start_date_pair = {Schedule.STATS['startDate']: args.startDate}
+    end_date_pair = {Schedule.STATS['endDate']: args.endDate}
+
     params = []
     if args.scheduleBroadcasts:
         params.append(Schedule.STATS['scheduleBroadcasts'])
@@ -124,13 +128,13 @@ def parse_args():
     if args.scheduleTicket:
         params.append(Schedule.STATS['scheduleTicket'])
     if args.teamId:
-        params.append({Schedule.STATS['teamId']: args.teamId})
+        params.append(team_pair)
     if args.date:
-        params.append({Schedule.STATS['date']: args.date})
+        params.append(date_pair)
     if args.startDate:
-        params.append({Schedule.STATS['startDate']: args.startDate})
+        params.append(start_date_pair)
     if args.endDate:
-        params.append({Schedule.STATS['endDate']: args.endDate})
+        params.append(end_date_pair)
 
     if params:
         schedule.load_ext_url(*params)
@@ -151,23 +155,6 @@ def parse_args():
 
 if __name__ == '__main__':
     #
+    # year = 1981
+    # team_id = 22          # Edmonton Oilers
     parse_args()
-
-#   def run_self():
-#       """ test code """
-#       year = 1981
-#       team_id = 22                  # Edmonton Oilers
-
-#       schedule = Schedule()
-
-#       print(schedule.get_ext_url(Schedule.scheduleBroadcasts))
-
-#       print(schedule.get_ext_url(Schedule.scheduleBroadcasts, season=year))
-#       print(schedule.get_ext_url(Schedule.scheduleLinescore, season=year))
-#       print(schedule.get_ext_url(Schedule.scheduleTicket, season=year))
-#       print(schedule.get_ext_url({Schedule.teamId: team_id}, season=year))
-#       print(schedule.get_ext_url({Schedule.date: (year, 1, 1)}, season=year))
-#       print(schedule.get_ext_url({Schedule.startDate: (year, 1, 1)}, season=year))
-#       print(schedule.get_ext_url({Schedule.endDate: (year, 1, 1)}, season=year))
-
-#   exit(run_self())
