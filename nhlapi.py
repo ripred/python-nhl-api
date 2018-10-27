@@ -5,11 +5,8 @@ nhl-api package
 import ssl
 import json
 import urllib
+import urllib.error
 import urllib.request
-
-# from nhlapi.team.team import Team
-# from nhlapi.people.people import People
-# from nhlapi.schedule.schedule import Schedule
 
 
 def get_json_data(api_url):
@@ -29,6 +26,6 @@ def get_json_data(api_url):
             raw_data = url.read().decode(http_info.get_content_charset())
             json_data = json.loads(raw_data)
             return json_data
-    except urllib.error.HTTPError as e:
-        print(e)
+    except urllib.error.HTTPError as err:
+        print(err)
         return ''
