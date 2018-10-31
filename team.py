@@ -19,13 +19,15 @@ class Team:
              'personNames': 1,
              'teamScheduleNext': 2,
              'teamSchedulePrev': 3,
-             'teamStats': 4}
+             'teamStats': 4,
+             'teams': 5}
 
     modifiers = {STATS['teamRoster']: 'expand=team.roster',
                  STATS['personNames']: 'expand=person.names',
                  STATS['teamScheduleNext']: 'expand=team.schedule.next',
                  STATS['teamSchedulePrev']: 'expand=team.schedule.previous',
-                 STATS['teamStats']: 'expand=team.stats'}
+                 STATS['teamStats']: 'expand=team.stats',
+                 STATS['teams']: ''}
 
     base_url = 'https://statsapi.web.nhl.com/api/v1/'
 
@@ -45,14 +47,18 @@ class Team:
         if url is not None:
             self.url = url
         else:
-            self.url = self.base_url + 'teams/{}'.format(self.nhl_id)
+            if self.nhl_id:
+                self.url = self.base_url + 'teams/{}'.format(self.nhl_id)
+            else:
+                self.url = self.base_url + 'teams'
         if content is not None:
             self.content = content
         else:
             self.content = get_json_data(self.url)
 
-        if self.content and 'teams' in self.content and 'name' in self.content['teams'][0]:
-            self.name = self.content['teams'][0]['name']
+        if self.nhl_id and self.content and 'teams' in self.content:
+            if 'name' in self.content['teams'][0]:
+                self.name = self.content['teams'][0]['name']
 
     def get_ext_url(self, *modifiers, **kwargs):
         """ get extra stats url's """
@@ -75,9 +81,9 @@ class Team:
             sep = '&'
         return url + suffix
 
-    def load_ext_url(self, *modifiers, season=None):
+    def load_ext_url(self, *modifiers, **kwargs):
         """ load the values from the extra data specified """
-        url = self.get_ext_url(*modifiers, season=season)
+        url = self.get_ext_url(*modifiers, **kwargs)
         self.content = get_json_data(url)
 
 
@@ -87,22 +93,24 @@ def parse_args():
 
     :return: The options as a dictionary
     """
-    description = 'use the nhlapi/Team class to retrieve information about a team in the NHL.'
+    description = 'Use the nhlapi/Team class to retrieve information about a team in the NHL.'
     epilog = 'Example use: team.py 22 --log team.log --humanReadable --teamStats --year=1980'
+
+    # Standard options for each nhlapi interface
     parser = argparse.ArgumentParser(description=description, epilog=epilog)
-
-    parser.add_argument('teamId', help='the team ID', type=int)
-
-    parser.add_argument('--year', help='the year to retrieve data for', type=int)
-
-    for stat in Team.STATS:
-        parser.add_argument('--' + stat, help='retrieve ' + stat + ' data', action='store_true')
-
     parser.add_argument('--humanReadable', help='output in easier to read format for users',
                         action='store_true')
     parser.add_argument(
         '--log', default=sys.stdout, type=argparse.FileType('a'),
         help='the file where the output should be written')
+
+    # Optional user supplied values
+    parser.add_argument('--teamId', help='get data for a specific team ID', type=int)
+    parser.add_argument('--year', help='the year to retrieve data for', type=int)
+
+    # The data available from this api:
+    for stat in Team.STATS:
+        parser.add_argument('--' + stat, help='retrieve ' + stat + ' data', action='store_true')
 
     args = parser.parse_args()
     team = Team(args.teamId)

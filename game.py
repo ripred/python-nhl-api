@@ -88,20 +88,23 @@ def parse_args():
 
     :return: The options as a dictionary
     """
-    description = 'use the nhlapi/Game class to retrieve information about a game in the NHL.'
+    description = 'Use the nhlapi/Game class to retrieve information about a game in the NHL.'
     epilog = 'Example use: game.py 2018020131 --boxScore'
+
+    # Standard options for each nhlapi interface
     parser = argparse.ArgumentParser(description=description, epilog=epilog)
-
-    parser.add_argument('gameId', help='the game ID', type=int)
-
-    for stat in Game.STATS:
-        parser.add_argument('--' + stat, help='retrieve ' + stat + ' data', action='store_true')
-
     parser.add_argument('--humanReadable', help='output in easier to read format for users',
                         action='store_true')
     parser.add_argument(
         '--log', default=sys.stdout, type=argparse.FileType('a'),
         help='the file where the output should be written')
+
+    # Optional user supplied values
+    parser.add_argument('gameId', help='the game ID', type=int)
+
+    # The data available from this api:
+    for stat in Game.STATS:
+        parser.add_argument('--' + stat, help='retrieve ' + stat + ' data', action='store_true')
 
     args = parser.parse_args()
     game = Game(args.gameId)

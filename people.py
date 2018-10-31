@@ -114,10 +114,18 @@ def parse_args():
 
     :return: The options as a dictionary
     """
-    description = 'use the nhlapi/People class to retrieve information about a player in the NHL'
+    description = 'Use the nhlapi/People class to retrieve information about a player in the NHL'
     epilog = 'Example use: people.py 8447400 --winLoss --year=1983'
-    parser = argparse.ArgumentParser(description=description, epilog=epilog)
 
+    # Standard options for each nhlapi interface
+    parser = argparse.ArgumentParser(description=description, epilog=epilog)
+    parser.add_argument('--humanReadable',
+                        help='output in easier to read format for users', action='store_true')
+    parser.add_argument(
+        '--log', default=sys.stdout, type=argparse.FileType('a'),
+        help='the file where the output should be written')
+
+    # Optional user supplied values
     parser.add_argument('playerId', help='the player ID', type=int)
     parser.add_argument('-y', '--year', metavar='year', help='the year to retrieve', type=int)
     parser.add_argument('-s', '--startYear', metavar='start year',
@@ -125,14 +133,9 @@ def parse_args():
     parser.add_argument('-e', '--endYear', metavar='end year',
                         help='the ending year to retrieve', type=int)
 
+    # The data available from this api:
     for stat in People.STATS:
         parser.add_argument('--' + stat, help='retrieve ' + stat + ' data', action='store_true')
-
-    parser.add_argument('--humanReadable',
-                        help='output in easier to read format for users', action='store_true')
-    parser.add_argument(
-        '--log', default=sys.stdout, type=argparse.FileType('a'),
-        help='the file where the output should be written')
 
     args = parser.parse_args()
     player = People(args.playerId)
@@ -152,7 +155,7 @@ def parse_args():
                 player.load_ext_url(People.STATS[arg])
 
             if args.humanReadable and player.content:
-                output = player.name + '\n' + json.dumps(player.content['stats'], indent=1)
+                output = json.dumps(player.content['stats'], indent=1)
             else:
                 output = player.content
             print(output)

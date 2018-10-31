@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-
 """
     Schedule class for the nhlapi package
+
+    This class is used to retrieve the schedule of games from the NHL stats api.
 """
 
 import sys
@@ -85,28 +86,32 @@ def parse_args():
 
     :return: The options as a dictionary
     """
-    description = 'use the nhlapi/Schedule class to retrieve'
-    description += ' information about a scheduled games in the NHL.'
+    description = 'Use the nhlapi/Schedule class to retrieve'
+    description += ' information about one or more scheduled games in the NHL.'
+
     epilog = 'Example use: schedule.py --log log/schedule.log'
     epilog += ' --humanReadable --scheduleBroadcasts --date=2018-10-26'
-    parser = argparse.ArgumentParser(description=description, epilog=epilog)
 
+    # Standard options for each nhlapi interface
+    parser = argparse.ArgumentParser(description=description, epilog=epilog)
+    parser.add_argument('--humanReadable', help='output in easier to read format for users',
+                        action='store_true')
+    parser.add_argument('--log', default=sys.stdout, type=argparse.FileType('a'),
+                        help='the file where the output should be written')
+
+    # Optional user supplied values
+    parser.add_argument('--teamId', help='set a specific team to retrieve', type=str)
+    parser.add_argument('--date', help='set a specific date to retrieve', type=str)
+    parser.add_argument('--startDate', help='set a specific starting date to retrieve', type=str)
+    parser.add_argument('--endDate', help='set a specific ending date to retrieve', type=str)
+
+    # The data available from this api:
     parser.add_argument('--scheduleBroadcasts',
                         help='retrieve scheduleBroadcasts data', action='store_true')
     parser.add_argument('--scheduleLinescore', help='retrieve scheduleLinescore data',
                         action='store_true')
     parser.add_argument('--scheduleTicket', help='retrieve scheduleTicket data',
                         action='store_true')
-    parser.add_argument('--teamId', help='set a specific team to retrieve', type=str)
-    parser.add_argument('--date', help='set a specific date to retrieve', type=str)
-    parser.add_argument('--startDate', help='set a specific starting date to retrieve', type=str)
-    parser.add_argument('--endDate', help='set a specific ending date to retrieve', type=str)
-
-    parser.add_argument('--humanReadable', help='output in easier to read format for users',
-                        action='store_true')
-    parser.add_argument(
-        '--log', default=sys.stdout, type=argparse.FileType('a'),
-        help='the file where the output should be written')
 
     args = parser.parse_args()
     schedule = Schedule()
