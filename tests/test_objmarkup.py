@@ -170,10 +170,10 @@ class Unit01MarkupTests(unittest.TestCase):
         self.assertTrue(self.parser)
         schema = self.parser.get_fields()
         self.assertEqual(len(schema), 4)
-        self.assertEqual(schema[0], 'company[1].name')
-        self.assertEqual(schema[1], 'company[1].employees[2].name')
-        self.assertEqual(schema[2], 'company[1].employees[2].job title')
-        self.assertEqual(schema[3], 'company[1].employees[2].hobby[2].name')
+        self.assertEqual(schema[0], 'company[1]name')
+        self.assertEqual(schema[1], 'company[1]employees[2]name')
+        self.assertEqual(schema[2], 'company[1]employees[2]job title')
+        self.assertEqual(schema[3], 'company[1]employees[2]hobby[2]name')
 
 class Unit02JsonMarkupTests(unittest.TestCase):
     """
