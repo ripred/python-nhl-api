@@ -454,7 +454,7 @@ def check_args_files(args):
     :return: nothing
     """
     if args.log:
-        log_format = '%(asctime)s %(levelname)s:%(message)s'
+        log_format = '%(asctime)s %(levelname)s: %(message)s'
         logging.basicConfig(filename=args.log,
                             format=log_format,
                             level=logging.DEBUG)
