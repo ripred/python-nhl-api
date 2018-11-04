@@ -183,10 +183,6 @@ class ObjMarkup:
         """
         Generate the list of valid markup fields for the object passed in
         """
-        if isinstance(obj, str):
-            if self.path:
-                self.fields.append(self.path)
-            return
         if self.is_dict(obj):
             orig_path = self.path
             for key, value in obj.items():
@@ -212,6 +208,7 @@ class ObjMarkup:
             self.path = orig_path
         else:
             if self.path:
+                self.path = self.path.replace('].', ']')
                 self.fields.append(self.path)
 
     def get_fields(self, obj=None):
@@ -239,10 +236,6 @@ class JsonMarkup(ObjMarkup):
         """
         Generate the list of valid markup fields and values for the object passed in
         """
-        if isinstance(obj, str):
-            if self.csv_path:
-                self.csv_fields.append(self.csv_path)
-            return
         if self.is_dict(obj):
             orig_path = self.csv_path
             for key, value in obj.items():
@@ -269,6 +262,7 @@ class JsonMarkup(ObjMarkup):
             self.csv_path = orig_path
         else:
             if self.csv_path:
+                self.csv_path = self.csv_path.replace('].', ']')
                 self.csv_fields.append(self.csv_path)
 
     def _get_csv_headings_parser(self, obj):
@@ -283,7 +277,7 @@ class JsonMarkup(ObjMarkup):
             parser = JsonMarkup(obj)
         parser.gen_csv(parser.obj)
         hdr_fields = parser.csv_fields
-        if hdr_fields and len(hdr_fields) > 0 and hdr_fields[0][0] == '[':
+        if hdr_fields and hdr_fields[0] and hdr_fields[0][0] == '[':
             parser = JsonMarkup(obj)
             parser.gen_csv(parser.obj)
         return parser
