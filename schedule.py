@@ -96,7 +96,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description=description, epilog=epilog)
     parser.add_argument('--humanReadable', help='output in easier to read format for users',
                         action='store_true')
-    parser.add_argument('--log', default=sys.stdout, type=argparse.FileType('a'),
+    parser.add_argument('--log', default='/dev/null', type=argparse.FileType('a'),
                         help='the file where the output should be written')
 
     # Optional user supplied values
