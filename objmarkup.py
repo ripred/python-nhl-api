@@ -13,6 +13,12 @@ import urllib.error
 import urllib.request
 import argparse
 import collections
+import logging
+# from logging import debug
+from logging import info
+from logging import warning
+from logging import error
+# from logging import critical
 
 
 class ObjMarkup:
@@ -109,13 +115,36 @@ class ObjMarkup:
         self.path = ''
         self.fields = []
 
+    def _handle_simple_parse_index(self, **kwargs):
+        # we are at a label being indexed [] but there is no split being used [:]
+        content = kwargs['content']
+        label = kwargs['label']
+        ndx_str = kwargs['ndx_str']
+        index_val = kwargs['index_val']
+        index = kwargs['index']
+        if self.is_dict(content):
+            content = content[label][int(index_val)]
+        elif self.is_list(content):
+            content = content[int(index_val)]
+        if label is None and ndx_str is not None:
+            index = index.replace(ndx_str, '', 1)
+        elif label is not None and ndx_str is None:
+            index = index.replace(label, '', 1)
+        elif label is not None and ndx_str is not None:
+            index = index.replace(label + ndx_str, '', 1)
+        return content, index
+
     def parse(self, path):
         """
         Get a reference to an element in the object using our markup grammar.
+
+        :param self: a reference to an ObjMarkup instance
+        :param path: the markup string for the data to be reached
+        :return: the value at the specified location
         """
         pattern = r'([^\[][a-zA-Z_]+[a-zA-z0-9_]?)?(\[([^\]]+)\])'
         expr_pat = r'([\(\)\%0-9\+\\\*\-\. ]*)'
-        begin_colon_end_ndx_pat = r'\[' + expr_pat + r':' + expr_pat + r'\]'
+        index_split_regex = r'\[' + expr_pat + r':' + expr_pat + r'\]'
 
         content = self.obj
         indexes = path.split(self.sep)
@@ -129,31 +158,17 @@ class ObjMarkup:
                 ndx_str = search_result.group(2)
                 index_val = search_result.group(3)
                 if ':' not in ndx_str:
-                    if self.is_dict(content):
-                        content = content[label][int(index_val)]
-                    elif self.is_list(content):
-                        content = content[int(index_val)]
-                    if label is None and ndx_str is not None:
-                        index = index.replace(ndx_str, '', 1)
-                    elif label is not None and ndx_str is None:
-                        index = index.replace(label, '', 1)
-                    elif label is not None and ndx_str is not None:
-                        index = index.replace(label + ndx_str, '', 1)
+                    # we are at a label being indexed [] but there is no split being used [:]
+                    content, index = self._handle_simple_parse_index(
+                        content=content, label=label, ndx_str=ndx_str,
+                        index_val=index_val, index=index)
                     search_result = re.search(pattern, index, re.M)
                     continue
-                ndx_with_colon = re.search(begin_colon_end_ndx_pat, ndx_str, re.M)
-                # if not ndx_with_colon:
-                #     raise ValueError('object markup: invalid index: "{}"'.format(ndx_str))
-                lhs = ndx_with_colon.group(1)
-                rhs = ndx_with_colon.group(2)
-                lhs = None if lhs == '' else lhs
-                rhs = None if rhs == '' else rhs
-                begin = int(lhs) if lhs else 0
-                end = int(rhs) if rhs else len(content[label])
+                ndx_with_colon = re.search(index_split_regex, ndx_str, re.M)
+                begin = int(ndx_with_colon.group(1)) if ndx_with_colon.group(1) else 0
+                end = int(ndx_with_colon.group(2))\
+                    if ndx_with_colon.group(2) else len(content[label])
                 if self.is_dict(content):
-                    # print('lhs = "{}" (type({})), rhs = "{}" (type({}))'.format(
-                    #    lhs, type(lhs), rhs, type(rhs)))
-                    # exit(0)
                     content = content[label][begin:end]
                     index = index.replace(label + ndx_str, '', 1)
                     search_result = re.search(pattern, index, re.M)
@@ -165,12 +180,6 @@ class ObjMarkup:
                         content = new_content
                     continue
                 elif self.is_list(content):
-                    # print('content = "{}" (type({}))'.format(content, type(content)))
-                    # print('label = "{}" (type({}))'.format(label, type(label)))
-                    # print('begin = "{}" (type({})), end = "{}" (type({}))'.format(
-                    #     begin, type(begin), end, type(end)))
-                    # exit(0)
-                    # content = content[label]
                     content = content[begin:end]
                     index = index.replace(label + ndx_str, '', 1)
                     search_result = re.search(pattern, index, re.M)
@@ -179,10 +188,21 @@ class ObjMarkup:
                 content = content[index]
         return content
 
-    def _gen_fields(self, obj):
+    def gen_fields(self, obj):
         """
-        Generate the list of valid markup fields for the object passed in
+        Generate the list of the valid base markup paths to the
+        end scalar values for the object passed in.  Basically
+        the "schema" of the structure. The resulting list is stored
+        in self.fields on success.
+
+        :param self: a reference to an ObjMarkup instance
+        :param obj: the object to generate the paths for
+        :return: nothing
         """
+        if not obj:
+            warning('markup: empty object used to generate fields')
+            return
+
         if self.is_dict(obj):
             orig_path = self.path
             for key, value in obj.items():
@@ -190,7 +210,7 @@ class ObjMarkup:
                 if self.path:
                     self.path += self.sep
                 self.path += key
-                self._gen_fields(value)
+                self.gen_fields(value)
             self.path = orig_path
         elif self.is_list(obj):
             index = 0
@@ -200,11 +220,11 @@ class ObjMarkup:
                 self.path = orig_path
                 if all_items_are_scalar:
                     self.path += '[{}]'.format(len(obj))
-                    self._gen_fields(item)
+                    self.gen_fields(item)
                     break
                 self.path += '[{}]'.format(index)
                 index += 1
-                self._gen_fields(item)
+                self.gen_fields(item)
             self.path = orig_path
         else:
             if self.path:
@@ -213,13 +233,22 @@ class ObjMarkup:
 
     def get_fields(self, obj=None):
         """
-        Get a list of valid markup fields for our object
+        Get the list of the valid base markup paths to the
+        end scalar values for the object passed in.  Basically
+        the "schema" of the structure.
+
+        :param self: a reference to an ObjMarkup instance
+        :param obj: the object to generate the paths for. if None, use our internal object
+        :return: a list of valid paths to all end data points if successful.  Indexes are
+                 indicated with a bracket pair [] surrounding the number of elements in
+                 that index-able  element in the path.
+                 Returns an empty list [] on failure.
         """
         self.path = ''
         self.fields = []
         if obj is None:
             obj = self.obj
-        self._gen_fields(obj)
+        self.gen_fields(obj)
         return self.fields
 
 
@@ -236,6 +265,10 @@ class JsonMarkup(ObjMarkup):
         """
         Generate the list of valid markup fields and values for the object passed in
         """
+        if not obj:
+            warning('markup: empty object used to generate csv')
+            return
+
         if self.is_dict(obj):
             orig_path = self.csv_path
             for key, value in obj.items():
@@ -266,6 +299,8 @@ class JsonMarkup(ObjMarkup):
                 self.csv_fields.append(self.csv_path)
 
     def _get_csv_headings_parser(self, obj):
+        if not obj:
+            warning('markup: empty object used to create headings parser')
         parser = JsonMarkup(None)
         if self.is_dict(obj):
             for item in obj.items():
@@ -284,15 +319,29 @@ class JsonMarkup(ObjMarkup):
 
     def get_csv(self, obj=None):
         """
-        Generate a comma separated value table from the object
+        Get a list of strings representing a comma separated value table
+        from the object passed in.  If the object is not supplied or is
+        None, use our own internal object.
+
+        :param self: a reference to an ObjMarkup instance
+        :param obj: the object to generate the table from. if None, use our internal object
+        :return: a list of strings representing the CSV table for the object.
+                 the first line in the list is the column headings line.
+                 the remaining lines are the data rows for those columns.
+                 Returns an empty list [] on failure.
         """
         self.csv_path = ''
         self.csv_fields = []
         if obj is None:
             obj = self.obj
+
         self.gen_csv(obj)
         hdr_fields = self.get_fields(obj)
         fields = self.csv_fields
+
+        if not obj:
+            warning('markup: empty object used to create csv')
+            return []
 
         head_parser = self._get_csv_headings_parser(obj)
         hdr_fields = head_parser.csv_fields
@@ -349,7 +398,7 @@ def create_args_parser():
     # Standard options for cli interface
     parser = argparse.ArgumentParser(description=description, epilog=epilog,
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('-l', '--log', type=argparse.FileType('a'), default='/dev/null',
+    parser.add_argument('-l', '--log', type=str, default='/dev/null',
                         help='the file where the log data should be written')
     parser.add_argument('-o', '--output', default=sys.stdout, type=argparse.FileType('a'),
                         help='the file where the output should be written')
@@ -404,19 +453,27 @@ def check_args_files(args):
     :param args: the arguments namespace returned from argparse
     :return: nothing
     """
+    if args.log:
+        log_format = '%(asctime)s %(levelname)s:%(message)s'
+        logging.basicConfig(filename=args.log,
+                            format=log_format,
+                            level=logging.DEBUG)
+
     if not args.filein:
         msg = 'markup: error opening input file'
-        print(msg)
-        args.log.write(msg + '\n')
-        args.log.close()
+        error(msg)
+        # print(msg)
+        # args.log.write(msg + '\n')
+        # args.log.close()
         exit(-1)
 
     if not args.output:
         msg = 'markup: error opening output file'
-        print(msg)
-        args.filein.close()
-        args.log.write(msg + '\n')
-        args.log.close()
+        error(msg)
+        # print(msg)
+        # args.filein.close()
+        # args.log.write(msg + '\n')
+        # args.log.close()
         exit(-2)
 
 
@@ -434,7 +491,7 @@ def process_args_basepaths(args, obj):
     fields = parser.get_fields()
     for field in fields:
         args.output.write(field + '\n')
-    args.log.write('markup: generated base paths\n')
+    info('markup: generated base paths')
 
 
 def process_args_values(args, obj):
@@ -450,21 +507,26 @@ def process_args_values(args, obj):
         obj = parser.obj = parser(args.markup)
     parser.gen_csv(obj)
     fields = parser.csv_fields
+
+    # get the max length needed for paths and values
+    # and create a format string using the results so
+    # our output is nice and pretty
+    if not fields:
+        warning('markup: empty object when generating values')
+        return
+
     max_heading = max([len(s) for s in fields])
     max_value = 0
     for field in fields:
         value = parser(field)
         max_value = max(max_value, len(str(value)))
-
-    fmt1 = '{:' + str(max_heading) + 's}'
-    fmt2 = '{:<' + str(max_value) + 's}'
-    fmt = fmt1 + ' = ' + fmt2 + '\n'
+    fmt = '{{:{}s}} = {{:{}s}}\n'.format(max_heading, max_value)
 
     for field in fields:
         value = parser(field)
         msg = fmt.format(field, str(value))
         args.output.write(msg)
-    args.log.write('markup: generated values\n')
+    info('markup: generated values')
 
 
 def process_args_csv(args, obj):
@@ -481,7 +543,7 @@ def process_args_csv(args, obj):
     rows = parser.get_csv(obj)
     for row in rows:
         print(row)
-    args.log.write('markup: generated csv table\n')
+    info('markup: generated csv table')
 
 
 def process_args_json(args, obj):
@@ -496,6 +558,7 @@ def process_args_json(args, obj):
     if args.markup:
         obj = parser.obj = parser(args.markup)
     args.output.write(json.dumps(obj, indent=2) + '\n')
+    info('markup: generated json')
 
 
 def parse_args():
@@ -532,7 +595,6 @@ def parse_args():
     if args.json:
         process_args_json(args, obj)
 
-    args.log.close()
     return args
 
 
