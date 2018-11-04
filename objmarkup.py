@@ -199,8 +199,8 @@ class ObjMarkup:
         :param obj: the object to generate the paths for
         :return: nothing
         """
-        if not obj:
-            warning('markup: empty object used to generate fields')
+        if obj is None:
+            warning('markup: empty (None) object used to generate fields')
             return
 
         if self.is_dict(obj):
@@ -265,8 +265,8 @@ class JsonMarkup(ObjMarkup):
         """
         Generate the list of valid markup fields and values for the object passed in
         """
-        if not obj:
-            warning('markup: empty object used to generate csv')
+        if obj is None:
+            warning('markup: empty (None) object used to generate csv')
             return
 
         if self.is_dict(obj):
@@ -339,8 +339,8 @@ class JsonMarkup(ObjMarkup):
         hdr_fields = self.get_fields(obj)
         fields = self.csv_fields
 
-        if not obj:
-            warning('markup: empty object used to create csv')
+        if obj is None:
+            warning('markup: empty (None) object used to create csv')
             return []
 
         head_parser = self._get_csv_headings_parser(obj)
@@ -515,7 +515,7 @@ def process_args_values(args, obj):
         warning('markup: empty object when generating values')
         return
 
-    max_heading = max([len(s) for s in fields])
+    max_heading = max([len(str(s)) for s in fields])
     max_value = 0
     for field in fields:
         value = parser(field)
