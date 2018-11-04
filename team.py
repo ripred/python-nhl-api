@@ -4,9 +4,15 @@
     Team class for the nhlapi package
 """
 
-import sys
+# import sys
 import json
 import argparse
+import logging
+# from logging import debug
+from logging import info
+# from logging import warning
+# from logging import error
+# from logging import critical
 from nhlapi import get_json_data
 
 
@@ -101,7 +107,7 @@ def parse_args():
     parser.add_argument('--humanReadable', help='output in easier to read format for users',
                         action='store_true')
     parser.add_argument(
-        '--log', default='/dev/null', type=argparse.FileType('a'),
+        '--log', default='/dev/null', type=str,
         help='the file where the output should be written')
 
     # Optional user supplied values
@@ -113,6 +119,13 @@ def parse_args():
         parser.add_argument('--' + stat, help='retrieve ' + stat + ' data', action='store_true')
 
     args = parser.parse_args()
+
+    if args.log:
+        log_format = '%(asctime)s %(levelname)s: %(message)s'
+        logging.basicConfig(filename=args.log,
+                            format=log_format,
+                            level=logging.DEBUG)
+
     team = Team(args.teamId)
     if not team:
         print('team with id: {} not found'.format(args.teamId))
@@ -134,8 +147,8 @@ def parse_args():
 
     result = 'retrieved data for id: {}'.format(args.teamId)
 
-    args.log.write('%s\n' % result)
-    args.log.close()
+    info(result)
+
     return args
 
 

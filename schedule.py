@@ -5,9 +5,15 @@
     This class is used to retrieve the schedule of games from the NHL stats api.
 """
 
-import sys
+# import sys
 import json
 import argparse
+import logging
+# from logging import debug
+from logging import info
+# from logging import warning
+# from logging import error
+# from logging import critical
 from nhlapi import get_json_data
 
 
@@ -96,7 +102,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description=description, epilog=epilog)
     parser.add_argument('--humanReadable', help='output in easier to read format for users',
                         action='store_true')
-    parser.add_argument('--log', default='/dev/null', type=argparse.FileType('a'),
+    parser.add_argument('--log', default='/dev/null', type=str,
                         help='the file where the output should be written')
 
     # Optional user supplied values
@@ -114,6 +120,13 @@ def parse_args():
                         action='store_true')
 
     args = parser.parse_args()
+
+    if args.log:
+        log_format = '%(asctime)s %(levelname)s: %(message)s'
+        logging.basicConfig(filename=args.log,
+                            format=log_format,
+                            level=logging.DEBUG)
+
     schedule = Schedule()
     if not schedule:
         print('unable to create Schedule object')
@@ -143,18 +156,15 @@ def parse_args():
 
     if params:
         schedule.load_ext_url(*params)
-
         if args.humanReadable:
             output = json.dumps(schedule.content, indent=1)
         else:
             output = schedule.content
-
         print(output)
 
     result = 'retrieved schedule'
+    info(result)
 
-    args.log.write('%s\n' % result)
-    args.log.close()
     return args
 
 
