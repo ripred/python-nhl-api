@@ -336,7 +336,7 @@ class JsonMarkup(ObjMarkup):
             obj = self.obj
 
         self.gen_csv(obj)
-        hdr_fields = self.get_fields(obj)
+        self.get_fields(obj)
         fields = self.csv_fields
 
         if obj is None:
@@ -345,6 +345,10 @@ class JsonMarkup(ObjMarkup):
 
         head_parser = self._get_csv_headings_parser(obj)
         hdr_fields = head_parser.csv_fields
+
+        if not hdr_fields:
+            warning('markup: empty csv_fields used to create csv heading row')
+            return []
 
         max_head = max([len(s) for s in hdr_fields]) + 2
         rows = []
@@ -410,7 +414,7 @@ def create_args_parser():
 
     parser.add_argument('-m', '--markup', type=str,
                         help='use the element at the specified markup path to begin '
-                        'the processing')
+                        'the processing', action='append')
 
     # Optional user supplied values
     parser.add_argument('-s', '--separator',
@@ -462,18 +466,11 @@ def check_args_files(args):
     if not args.filein:
         msg = 'markup: error opening input file'
         error(msg)
-        # print(msg)
-        # args.log.write(msg + '\n')
-        # args.log.close()
         exit(-1)
 
     if not args.output:
         msg = 'markup: error opening output file'
         error(msg)
-        # print(msg)
-        # args.filein.close()
-        # args.log.write(msg + '\n')
-        # args.log.close()
         exit(-2)
 
 
@@ -486,12 +483,21 @@ def process_args_basepaths(args, obj):
     :return: nothing
     """
     parser = ObjMarkup(obj)
+
+    def _impl():
+        fields = parser.get_fields()
+        for field in fields:
+            args.output.write(field + '\n')
+
     if args.markup:
-        parser.obj = parser(args.markup)
-    fields = parser.get_fields()
-    for field in fields:
-        args.output.write(field + '\n')
-    info('markup: generated base paths')
+        for markup in args.markup:
+            parser.obj = obj
+            parser.obj = parser(markup)
+            _impl()
+            info('markup: generated base paths for markup: "{}"'.format(markup))
+    else:
+        _impl()
+        info('markup: generated base paths')
 
 
 def process_args_values(args, obj):
@@ -503,30 +509,39 @@ def process_args_values(args, obj):
     :return: nothing
     """
     parser = JsonMarkup(obj)
+
+    def _impl(r_obj):
+        parser.gen_csv(r_obj)
+        fields = parser.csv_fields
+
+        # get the max length needed for paths and values
+        # and create a format string using the results so
+        # our output is nice and pretty
+        if not fields:
+            warning('markup: empty csv_fields when generating values')
+            return
+
+        max_heading = max([len(str(s)) for s in fields])
+        max_value = 0
+        for field in fields:
+            value = parser(field)
+            max_value = max(max_value, len(str(value)))
+        fmt = '{{:{}s}} = {{:{}s}}\n'.format(max_heading, max_value)
+
+        for field in fields:
+            value = parser(field)
+            msg = fmt.format(field, str(value))
+            args.output.write(msg)
+
     if args.markup:
-        obj = parser.obj = parser(args.markup)
-    parser.gen_csv(obj)
-    fields = parser.csv_fields
-
-    # get the max length needed for paths and values
-    # and create a format string using the results so
-    # our output is nice and pretty
-    if not fields:
-        warning('markup: empty object when generating values')
-        return
-
-    max_heading = max([len(str(s)) for s in fields])
-    max_value = 0
-    for field in fields:
-        value = parser(field)
-        max_value = max(max_value, len(str(value)))
-    fmt = '{{:{}s}} = {{:{}s}}\n'.format(max_heading, max_value)
-
-    for field in fields:
-        value = parser(field)
-        msg = fmt.format(field, str(value))
-        args.output.write(msg)
-    info('markup: generated values')
+        for markup in args.markup:
+            parser.obj = obj
+            parser.obj = parser(markup)
+            _impl(parser.obj)
+            info('markup: generated values for markup "{}"'.format(markup))
+    else:
+        _impl(obj)
+        info('markup: generated values')
 
 
 def process_args_csv(args, obj):
@@ -538,12 +553,21 @@ def process_args_csv(args, obj):
     :return: nothing
     """
     parser = JsonMarkup(obj)
+
+    def _impl(r_obj):
+        rows = parser.get_csv(r_obj)
+        for row in rows:
+            args.output.write(row + '\n')
+
     if args.markup:
-        obj = parser.obj = parser(args.markup)
-    rows = parser.get_csv(obj)
-    for row in rows:
-        print(row)
-    info('markup: generated csv table')
+        for markup in args.markup:
+            parser.obj = obj
+            parser.obj = parser(markup)
+            _impl(parser.obj)
+            info('markup: generated csv table for markup "{}"'.format(markup))
+    else:
+        _impl(obj)
+        info('markup: generated csv table')
 
 
 def process_args_json(args, obj):
@@ -555,10 +579,19 @@ def process_args_json(args, obj):
     :return: nothing
     """
     parser = ObjMarkup(obj)
+
+    def _impl(r_obj):
+        args.output.write(json.dumps(r_obj, indent=2) + '\n')
+
     if args.markup:
-        obj = parser.obj = parser(args.markup)
-    args.output.write(json.dumps(obj, indent=2) + '\n')
-    info('markup: generated json')
+        for markup in args.markup:
+            parser.obj = obj
+            parser.obj = parser(markup)
+            _impl(parser.obj)
+            info('markup: generated json for markup "{}"'.format(markup))
+    else:
+        _impl(obj)
+        info('markup: generated json')
 
 
 def parse_args():
