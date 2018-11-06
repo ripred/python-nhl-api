@@ -103,6 +103,123 @@ class ObjMarkup:
             json_data = json.loads(raw_data)
             return json_data
 
+    def markup_to_obj(self, markup, func=None):
+        """
+        A Markup Parser implementing our grammar
+        """
+        # A valid label, which does not have any preceding brackets or periods. May be empty.
+        label_rgx = r'([^\[\]' + r'\\' + self.sep + r'][a-zA-Z_]+[a-zA-z0-9_]?)?'
+
+        # A legal value for an index or a portion of a split index. May be empty.
+        # expr_rgx = r'([0-9\-\.]*)'
+        opt_expr_rgx = r'([0-9\-]*)'  # optional
+        req_expr_rgx = r'([0-9\-]+)'  # required
+
+        # A split index value. e.g. 'expression : expression'. the expressions may be empty e.g. ':'
+        split_rgx = r'(' + opt_expr_rgx + r':' + opt_expr_rgx + r')'
+
+        # A legal value to go in-between opening and closing brackets.
+        # May be a single expression (which can be empty) or a split index expression
+        index_rgx = r'(' + req_expr_rgx + r'|' + split_rgx + r')'
+        # index_rgx = r'(' + req_expr_rgx + r')'
+
+        # Brackets around a legal index expression
+        # indexed_rgx = r'(\[' + r'[^\[\]]' + index_rgx + r'\])'
+        indexed_rgx = r'(\[' + index_rgx + r'\])'
+
+        # An expression that can terminate a label: either a period or a bracketed index expression
+        term_rgx = r'(' + r'\.' + r'|' + indexed_rgx + r')'
+
+        # A terminated label
+        token_rgx = r'(' + label_rgx + term_rgx + r')'
+
+        # the default no-op token handler
+        def noop(*args):
+            if len(args) < 2:
+                return {}
+            if isinstance(args[1], str):
+                # this is the final markup string
+                pass
+            else:
+                # this is a token match from the markup string
+                pass
+            return args[0]  # content
+
+        if func is None:
+            func = noop
+
+        content = {}
+        search = re.search(token_rgx, markup, re.M)
+        while search:
+            groups = search.groups()
+            content = func(content, groups)
+            markup = markup.replace(search.group(0), '', 1)
+            search = re.search(token_rgx, markup, re.M)
+        if markup:
+            content = func(content, markup)
+        return content
+
+    def token(self, content, groups):
+        """
+        the token handler
+        """
+        if not isinstance(groups, str):
+            # this is a token match from the markup string
+            print('token with search match. {} Groups:'.format(len(groups)))
+            index = 0
+            for group in groups:
+                print('{:3d})    "{}" (type({}))'.format(index, str(group), type(group)))
+                index += 1
+            print()
+            # make sure the path doesn't already exist
+            if groups[1] in content:
+                # it exists by name. make sure it's the same type
+                if self.is_dict(content[groups[1]]) and not groups[2] == self.sep:
+                    print('Markup error: adding the list {} '
+                          'but it already exists as a dict'.format(groups[1]))
+                    return content
+                if self.is_list(content[groups[1]]) and groups[2] == self.sep:
+                    print('Markup error: adding the dict {} '
+                          'but it already exists as a list'.format(groups[1]))
+                return content
+            self.groups.append(groups)
+            return content
+
+        # this is the final markup string
+        print('token with final markup: "{}"'.format(groups))
+        if groups:
+            # make sure the path doesn't already exist
+            if groups in content:
+                # it exists by name. make sure it's the same type
+                if self.is_list(content[groups]):
+                    print('Markup error: adding the dict {} '
+                          'but it already exists as a list'.format(groups))
+                return content
+            self.groups.append([groups + self.sep, groups, self.sep,
+                                None, None, None, None, None, None])
+        for group in self.groups[::-1]:
+            if group[2] == self.sep:
+                obj = {}
+                if content:
+                    if ObjMarkup.is_dict(content):
+                        for key, value in content.items():
+                            obj[group[1]] = {}
+                            obj[group[1]][key] = value
+                    else:
+                        obj[group[1]] = {}
+                        obj[group[1]] = content
+                else:
+                    obj[group[1]] = None
+                content = obj
+            else:
+                obj = [None for _ in range(int(group[4]))]
+                if content:
+                    for i in range(int(group[4])):
+                        obj[i] = content.copy()
+                    obj = {group[1]: obj}
+                content = obj
+        return content
+
     def __call__(self, markup):
         return self.parse(markup)
 
@@ -114,6 +231,7 @@ class ObjMarkup:
         self.obj = obj
         self.path = ''
         self.fields = []
+        self.groups = []
 
     def _handle_simple_parse_index(self, **kwargs):
         # we are at a label being indexed [] but there is no split being used [:]
@@ -383,6 +501,75 @@ class JsonMarkup(ObjMarkup):
                 column_index = 0
 
         return rows
+
+# GROUP_LIST = []
+#
+# def token(content, groups):
+#     """
+#     the token handler
+#     """
+#     if not isinstance(groups, str):
+#         # this is a token match from the markup string
+#         print('token with search match. {} Groups:'.format(len(groups)))
+#         index = 0
+#         for group in groups:
+#             print('{:3d})    "{}" (type({}))'.format(index, str(group), type(group)))
+#             index += 1
+#         GROUP_LIST.append(groups)
+#         print()
+#         return content
+#
+#     # this is the final markup string
+#     print('token with final markup: "{}"'.format(groups))
+#     if groups:
+#         GROUP_LIST.append([groups + '.', groups, '.', None, None, None, None, None, None])
+#     for group in GROUP_LIST[::-1]:
+#         obj = None
+#         if group[2] == '.':
+#             obj = {}
+#             if content:
+#                 if ObjMarkup.is_dict(content):
+#                     for key, value in content.items():
+#                         obj[group[1]] = {}
+#                         obj[group[1]][key] = value
+#                 else:
+#                     obj[group[1]] = {}
+#                     obj[group[1]] = content
+#             else:
+#                 obj[group[1]] = None
+#             content = obj
+#         else:
+#             obj = [None for _ in range(int(group[4]))]
+#             if content:
+#                 for i in range(int(group[4])):
+#                     obj[i] = content.copy()
+#                 obj = {group[1]: obj}
+#             content = obj
+#     return content
+
+
+def test1():
+    """
+    Test some code.
+    """
+    markup = 'company.attr[2]name.location'
+
+#   markup1 = 'company[1]name'
+#   markup2 = 'company[1]employees[2]name'
+#   markup3 = 'company[1]employees[2]job title'
+#   markup4 = 'company[1]employees[2]hobby[2]name'
+
+    parser = ObjMarkup({})
+    obj = parser.markup_to_obj(markup, parser.token)
+
+    print()
+    print('The results are:')
+    print(json.dumps(obj, indent=2))
+    print()
+    exit(0)
+
+
+test1()
 
 
 def create_args_parser():
