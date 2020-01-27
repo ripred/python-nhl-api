@@ -1,0 +1,63 @@
+PURPOSE:
+Easily process complex object hierarchies using the ObjMarkup class
+and its defined grammar.  The input object can be of any type.  This means
+JSON objects, Python objects, or any user defined objects are natively
+supported and very easily explored and traversed (the *original* reason I
+wrote this library).
+
+The grammar is very simple yet flexible and describes only two things: dictionary
+(mapping) operations and list (and every equivelant index-able type) operations.
+
+This object markup:
+
+    'company.employees[0].personal.hobby[0]'
+
+is equivelent to the following dictionary and indexing expression:
+
+    ['company']['employees'][0]['personal']['hobby'][0]
+
+BENEFITS:
+
+    o The savings may seem small in this example but as objects become more complex the
+      readability, intent, and comprehension of the source code dramitically improves.
+    o The dramatic reduction of keystrokes requiring shift keys makes writing markup
+      paths to data much easier to write quickly, easier to read intent, and easier to
+      to spot mistakes.
+    o Since the ObjMarkup class works with any data type the ubuitious use cases across
+      your source code multiply the benefits quickly.
+    o This library can be used as both a stand-alone command line tool and/or imported and
+      used natively in your Python source code.
+
+Using the Library:
+
+API:
+
+Assume we have the following data either as a native
+Python variable or to json data read from somewhere:
+
+    obj = {
+        'company': {
+            'employees': [
+                {'name': 'Fred Flintstone', 'title': 'crane operator', 'personal': [
+                    {'hobby': 'bowling'},
+                    {'hobby': 'yelling at Barney'}
+                ]},
+                {'name': 'George Slate', 'title': 'Founder and President', 'personal': [
+                    {'hobby': 'counting his money'},
+                    {'hobby': 'yelling at Fred'}
+                ]}
+            ],
+            'name': 'Slate Rock and Gravel Company'
+        }
+    }
+
+To use the library import the module and instantiate an ObjMarkup object with the data we
+want to work with:
+
+    import objmarkup
+
+    markup = ObjMarkup(obj)
+
+
+
+
