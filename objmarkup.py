@@ -13,6 +13,7 @@ import urllib.error
 import urllib.request
 import argparse
 import collections
+import collections.abc
 import logging
 # from logging import debug
 from logging import info
@@ -38,7 +39,7 @@ class ObjMarkup:
         :param obj: the object to check
         :return: True if the object is a dict type container.
         """
-        return isinstance(obj, collections.Mapping) and not isinstance(obj, str)
+        return isinstance(obj, collections.abc.Mapping) and not isinstance(obj, str)
 
     @classmethod
     def is_list(cls, obj):
@@ -48,7 +49,7 @@ class ObjMarkup:
         :return: True if the object is a list/array type container.
         """
         return isinstance(obj, collections.Collection)\
-            and not isinstance(obj, collections.Mapping)\
+            and not isinstance(obj, collections.abc.Mapping)\
             and not isinstance(obj, str)
 
     @classmethod
@@ -75,7 +76,7 @@ class ObjMarkup:
             # therefore cannot contain any containers
             return None
 
-        if isinstance(data, collections.Mapping):
+        if isinstance(data, collections.abc.Mapping):
             for value in data.values():
                 if isinstance(value, collections.Collection) and not isinstance(value, str):
                     return value
@@ -260,7 +261,7 @@ class ObjMarkup:
         :param path: the markup string for the data to be reached
         :return: the value at the specified location
         """
-        pattern = r'([^\[][a-zA-Z_]+[a-zA-z0-9_]?)?(\[([^\]]+)\])'
+        pattern = r'([^\[][a-zA-Z_]+[A-Za-z0-9_]?)?(\[([^\]]+)\])'
         expr_pat = r'([\(\)\%0-9\+\\\*\-\. ]*)'
         index_split_regex = r'\[' + expr_pat + r':' + expr_pat + r'\]'
 
@@ -567,9 +568,6 @@ def test1():
     print(json.dumps(obj, indent=2))
     print()
     exit(0)
-
-
-test1()
 
 
 def create_args_parser():
